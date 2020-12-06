@@ -6,8 +6,10 @@ import shutil
 from typer.colors import RED, GREEN
 import enlighten
 import ffmpeg
-from .utils import convertion_path, get_codec, check_ignore, choose_encoder
+
+from .utils import convertion_path, get_codec, check_ignore, choose_encoder, shutdown
 from . import convert_file, convert_video_progress_bar
+import platform
 
 app = typer.Typer()
 
@@ -39,11 +41,17 @@ def folder(path: Path = typer.Argument(
 ),
 codec: str = typer.Option(
     default='hevc'
-)
-):
+
+), shutdown_at_end: bool = typer.Option(
+    default=False
+)):
     """
     Convert all videos and audios in a folder
     """
+
+    op_sys = platform.system()
+    if shutdown_at_end and op_sys not in ['Linux', 'Windows']:
+        typer.secho(f'--shoutdown-at-end is not aviable in {op_sys}')
 
     videos = []
     audios = []
@@ -58,7 +66,7 @@ codec: str = typer.Option(
             if check_ignore(file_path, ignore_extension, ignore_path):
                 continue
 
-            if guess and 'video' in guess.mime :
+            if guess and 'video' in guess.mime:
 
                 videos.append(file_path)
 
@@ -68,7 +76,9 @@ codec: str = typer.Option(
 
     manager = enlighten.get_manager()
     errors_files = []
-    pbar = manager.counter(total=len(videos)+len(audios), desc='Files', unit='files')
+    pbar = manager.counter(total=len(videos)+len(audios),
+                           desc='Files',
+                           unit='files')
 
     for video in videos:
         typer.secho(f'Processing: {video}')
@@ -112,15 +122,17 @@ codec: str = typer.Option(
                     os.remove(str(new_path))
 
             except ffmpeg._run.Error:
-                typer.secho(f'ffmpeg could not process this file: {str(audio)}', fg=RED)
+                typer.secho(f'ffmpeg could not process: {str(audio)}', fg=RED)
                 errors_files.append(audio)
-
 
         pbar.update()
 
     if errors_files:
         typer.secho('This files could not be processed:', fg=RED)
         typer.secho(str(errors_files), fg=RED)
+
+    if shutdown_at_end:
+        shutdown()
 
 
 @app.command()
@@ -136,11 +148,16 @@ def file(path: Path = typer.Argument(
 ),
 codec: str = typer.Option(
     default='hevc'
-)
-):
+), shutdown_at_end: bool = typer.Option(
+    default=False
+)):
     """
     Convert a file
     """
+
+    op_sys = platform.system()
+    if shutdown_at_end and op_sys not in ['Linux', 'Windows']:
+        typer.secho(f'--shoutdown-at-end is not aviable in {op_sys}')
 
     if path is None:
         typer.secho('Please write the video or audio path', fg=RED)
@@ -158,8 +175,6 @@ codec: str = typer.Option(
                     please delete it', fg=RED)
         return
 
-
-
     if get_codec(str(path)) == codec and not force:
         typer.secho(f'This video codec is already \'{codec}\'', fg=GREEN)
         return
@@ -174,6 +189,9 @@ codec: str = typer.Option(
             typer.secho(f'Check FFMPEG secction on {readme_url}', fg=RED)
         else:
             raise error
+
+    if shutdown_at_end:
+        shutdown()
 
 @app.command()
 def cp(file1: Path = typer.Argument(
@@ -195,6 +213,8 @@ def cp(file1: Path = typer.Argument(
 ),
 codec: str = typer.Option(
     default='hevc'
+),shutdown_at_end: bool = typer.Option(
+    default=False
 )
 ):
     """
@@ -229,3 +249,5 @@ codec: str = typer.Option(
             typer.secho(f'Check FFMPEG secction on {readme_url}', fg=RED)
         else:
             raise error
+    if shutdown_at_end:
+        shutdown()

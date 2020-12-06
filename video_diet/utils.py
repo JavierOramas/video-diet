@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 import filetype
 import typer
+import platform
+import os
 
 from .patch_ffprobe import FFProbe
 
@@ -59,7 +61,7 @@ def get_bitdepth(path: str):
 
     return PixelFormat('yuv420p')
 
-def convertion_path(path: Path, audio: bool ):
+def convertion_path(path: Path, audio: bool):
 
     if not audio:
 
@@ -76,14 +78,14 @@ def convertion_path(path: Path, audio: bool ):
     return path.parent / ('conv-' + path.name)
 
 
-
 def check_if_video(path: str):
 
     guess = filetype.guess(path)
 
     return guess and 'video' in guess
 
-def check_ignore(file_path, ignore_extension:str, ignore_path:str):
+
+def check_ignore(file_path, ignore_extension: str, ignore_path: str):
 
     ignored_by_extension = ignore_extension is not None \
         and str(file_path).lower().endswith(ignore_extension)
@@ -96,9 +98,15 @@ def check_ignore(file_path, ignore_extension:str, ignore_path:str):
 
     return False
 
+def shutdown():
+    op_sys = platform.system()
+    if op_sys == 'Linux':
+        os.system('shutdown -t 1')
+    elif op_sys == 'Windows':
+        os.system('shutdown /s /t 1')
+
+
 def choose_encoder(codec:str):
     if codec == 'av1':
         return 'libaom-av1'
-
     return 'libx265'
-               
